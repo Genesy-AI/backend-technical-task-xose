@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseCsv, isValidEmail } from './csvParser'
+import { parseCsv, isValidEmail, isValidCountryCode } from './csvParser'
 
 describe('isValidEmail', () => {
   it('should return true for valid email addresses', () => {
@@ -17,6 +17,28 @@ describe('isValidEmail', () => {
     expect(isValidEmail('test.example.com')).toBe(false)
     expect(isValidEmail('test@.com')).toBe(false)
     expect(isValidEmail('test@example')).toBe(false)
+  })
+})
+
+describe('isValidCountryCode', () => {
+  it('should return true for valid ISO country codes', () => {
+    expect(isValidCountryCode('ES')).toBe(true)
+    expect(isValidCountryCode('US')).toBe(true)
+    expect(isValidCountryCode('FR')).toBe(true)
+    expect(isValidCountryCode('PK')).toBe(true)
+  })
+
+  it('should return true for lowercase country codes', () => {
+    expect(isValidCountryCode('es')).toBe(true)
+    expect(isValidCountryCode('us')).toBe(true)
+  })
+
+  it('should return false for invalid country codes', () => {
+    expect(isValidCountryCode('XXX')).toBe(false)
+    expect(isValidCountryCode('12')).toBe(false)
+    expect(isValidCountryCode('A')).toBe(false)
+    expect(isValidCountryCode('ABC')).toBe(false)
+    expect(isValidCountryCode('')).toBe(false)
   })
 })
 
@@ -103,6 +125,37 @@ Jane,Smith,jane@example.com`
     expect(result[1].isValid).toBe(true)
   })
 
+  it('should accept valid country codes', () => {
+    const csv = `firstName,lastName,email,countryCode
+John,Doe,john@example.com,ES`
+
+    const result = parseCsv(csv)
+
+    expect(result[0].countryCode).toBe('ES')
+    expect(result[0].isValid).toBe(true)
+  })
+
+  it('should accept empty country code (optional field)', () => {
+    const csv = `firstName,lastName,email,countryCode
+John,Doe,john@example.com,`
+
+    const result = parseCsv(csv)
+
+    expect(result[0].countryCode).toBeUndefined()
+    expect(result[0].isValid).toBe(true)
+  })
+
+  it('should reject invalid country codes', () => {
+    const csv = `firstName,lastName,email,countryCode
+John,Doe,john@example.com,XXX
+John,Doe,john@example.com,12`
+
+    const result = parseCsv(csv)
+
+    expect(result[0].isValid).toBe(false)
+    expect(result[0].errors).toContain('Invalid country code')
+  })
+
   it('should handle CSV with quoted values', () => {
     const csv = `firstName,lastName,email,jobTitle
 "John","Doe","john.doe@example.com","Software Engineer"`
@@ -169,17 +222,18 @@ Bob,Johnson,bob@example.com`
   })
 
   it('should handle multiple validation errors per lead', () => {
-    const csv = `firstName,lastName,email
- , ,invalid-email`
+    const csv = `firstName,lastName,email,countryCode
+ , ,invalid-email,XXX`
 
     const result = parseCsv(csv)
 
     expect(result).toHaveLength(1)
     expect(result[0].isValid).toBe(false)
-    expect(result[0].errors).toHaveLength(3)
+    expect(result[0].errors).toHaveLength(4)
     expect(result[0].errors).toContain('First name is required')
     expect(result[0].errors).toContain('Last name is required')
     expect(result[0].errors).toContain('Invalid email format')
+    expect(result[0].errors).toContain('Invalid country code')
   })
 
   it('should handle extra columns not in header mapping', () => {
