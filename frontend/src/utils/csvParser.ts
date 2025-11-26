@@ -1,4 +1,11 @@
 import Papa from 'papaparse'
+import countries from 'i18n-iso-countries'
+
+// Needed register any locale (only being used for validation) to reduce bundle size
+// as i18n-iso-countries is tree-shakeable
+// Decided to load english because it´s the most common and lightest
+import en from 'i18n-iso-countries/langs/en.json'
+countries.registerLocale(en);
 
 export interface CsvLead {
   firstName: string
@@ -15,6 +22,10 @@ export interface CsvLead {
 export const isValidEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   return emailRegex.test(email)
+}
+
+export const isValidCountryCode = (countryCode: string) => {
+  return countries.isValid(countryCode.toUpperCase());
 }
 
 export const parseCsv = (content: string): CsvLead[] => {
@@ -87,6 +98,9 @@ export const parseCsv = (content: string): CsvLead[] => {
       errors.push('Email is required')
     } else if (!isValidEmail(lead.email)) {
       errors.push('Invalid email format')
+    }
+    if (lead.countryCode?.trim() && !isValidCountryCode(lead.countryCode)) {
+      errors.push('Invalid country code')
     }
 
     data.push({
