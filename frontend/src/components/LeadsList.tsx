@@ -68,6 +68,36 @@ export const LeadsList: FC = () => {
     }
   })
 
+  const findPhonesMutation = useMutation({
+    mutationFn: async (ids: number[]) => api.leads.findPhones({ leadIds: ids, userTier: 0 }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['leads', 'getMany'] })
+      setIsEnrichDropdownOpen(false)
+
+      if (data.results && data.results.length > 0) {
+        toast.success(
+          data.foundCount === 1
+            ? `Found ${data.foundCount} phone number`
+            : `Found ${data.foundCount} phone numbers`
+        )
+      }
+
+      // Show errors
+      if (data.errors && data.errors.length > 0) {
+        if (data.errors.length > 3) {
+          toast.error(`Failed to find phones for ${data.errors.length} leads`);
+        } else {
+          data.errors.forEach((error) => {
+            toast.error(`${error.leadName}: ${error.error}`)
+          })
+        }
+      }
+    },
+    onError: () => {
+      toast.error('Failed to find phone numbers. Please try again.')
+    }
+  })
+
   const handleSelectAll = (checked: boolean) => {
     if (checked && leads.data) {
       setSelectedLeads(leads.data.map(lead => lead.id))
@@ -167,7 +197,7 @@ export const LeadsList: FC = () => {
                     <button
                       onClick={() => verifyEmailsMutation.mutate(selectedLeads)}
                       disabled={verifyEmailsMutation.isPending}
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
                     >
                       <div className="flex items-center">
                         {verifyEmailsMutation.isPending ? (
@@ -181,6 +211,25 @@ export const LeadsList: FC = () => {
                           </svg>
                         )}
                         {verifyEmailsMutation.isPending ? 'Verifying...' : 'Verify Email'}
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => findPhonesMutation.mutate(selectedLeads)}
+                      disabled={findPhonesMutation.isPending}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
+                    >
+                      <div className="flex items-center">
+                        {findPhonesMutation.isPending ? (
+                          <svg className="animate-spin mr-3 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        ) : (
+                          <svg className="mr-3 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                          </svg>
+                        )}
+                        {findPhonesMutation.isPending ? 'Finding...' : 'Find Phone'}
                       </div>
                     </button>
                     <button
@@ -251,6 +300,9 @@ export const LeadsList: FC = () => {
                   Email
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+                  Phone
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
                   Job Title
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
@@ -289,6 +341,18 @@ export const LeadsList: FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{lead.email || '-'} {lead.emailVerified === null ? '❓' : lead.emailVerified ? '✅' : '❌'}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {lead.phone ? (
+                        <span title={`Provider: ${lead.phoneProvider || 'Unknown'}`}>
+                          {lead.phone}
+                          {lead.phoneCountryCode && ` (${lead.phoneCountryCode})`}
+                        </span>
+                      ) : (
+                        '-'
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{lead.jobTitle || '-'}</div>

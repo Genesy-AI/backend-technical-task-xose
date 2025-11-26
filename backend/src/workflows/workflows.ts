@@ -11,6 +11,27 @@ const { verifyEmail } = proxyActivities<typeof activities>({
   }
 })
 
+const { findPhone } = proxyActivities<typeof activities>({
+  startToCloseTimeout: '60 seconds', // Longer timeout for waterfall across multiple providers
+  retry: {
+    maximumAttempts: 2, // Less retries since waterfall already tries multiple providers
+    initialInterval: '2 seconds',
+    backoffCoefficient: 2,
+    maximumInterval: '15 seconds',
+  }
+})
+
 export async function verifyEmailWorkflow(email: string): Promise<boolean> {
   return await verifyEmail(email)
 }
+
+export async function findPhoneWorkflow(params: {
+  email?: string
+  fullName?: string
+  companyWebsite?: string
+  jobTitle?: string
+  userTier?: number
+}): Promise<{ phone: string; provider: string; countryCode?: string } | null> {
+  return await findPhone(params)
+}
+
