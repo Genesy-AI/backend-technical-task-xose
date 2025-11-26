@@ -1,6 +1,7 @@
 export async function verifyEmail(email: string): Promise<boolean> {
     if (email.includes('john.doe')) {
-        return false;
+        // Now we are forcing an error to test how the system reacts to it
+        throw new Error("Forced error");
     }
 
     if (email.includes('jane.smith')) {
