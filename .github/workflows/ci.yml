@@ -25,7 +25,7 @@ jobs:
           cache: "pnpm"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: cd backend && pnpm install --frozen-lockfile
 
       - name: Lint backend
         run: cd backend && pnpm lint
@@ -59,7 +59,7 @@ jobs:
           cache: "pnpm"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: cd frontend && pnpm install --frozen-lockfile
 
       - name: Lint frontend
         run: cd frontend && pnpm lint
