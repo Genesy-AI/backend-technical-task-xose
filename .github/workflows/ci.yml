@@ -27,7 +27,7 @@ jobs:
         run: cd backend && pnpm install --frozen-lockfile
 
       - name: Lint backend
-        run: cd backend && pnpm lint
+        run: cd backend && pnpm format
 
       - name: Test backend
         run: cd backend && pnpm test
