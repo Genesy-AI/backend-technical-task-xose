@@ -23,7 +23,7 @@ export const PROVIDER_CONFIGS: ProviderConfig[] = [
         rateLimit: {
             maxRequestsPerHour: 100,
         },
-        minUserTier: UserTier.PREMIUM,
+        // minUserTier: UserTier.PREMIUM,
     },
     {
         name: ProviderName.NIMBUS_LOOKUP,
@@ -32,7 +32,7 @@ export const PROVIDER_CONFIGS: ProviderConfig[] = [
         rateLimit: {
             maxRequestsPerHour: 300,
         },
-        minUserTier: UserTier.BASIC,
+        // minUserTier: UserTier.BASIC,
     },
     {
         name: ProviderName.ASTRA_DIALER,
