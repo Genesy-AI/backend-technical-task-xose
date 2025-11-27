@@ -1,7 +1,8 @@
+import 'dotenv/config'
 import { PrismaClient } from '@prisma/client'
 import express, { Request, Response } from 'express'
 import { Connection, Client } from '@temporalio/client'
-import { verifyEmailWorkflow } from './workflows'
+import { verifyEmailWorkflow, findPhoneWorkflow } from './workflows'
 import { generateMessageFromTemplate } from './utils/messageGenerator'
 import { runTemporalWorker } from './worker'
 const prisma = new PrismaClient()
@@ -310,6 +311,82 @@ app.post('/leads/verify-emails', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error verifying emails:', error)
     res.status(500).json({ error: 'Failed to verify emails' })
+  }
+})
+
+app.post('/leads/find-phones', async (req: Request, res: Response) => {
+  if (!req.body || typeof req.body !== 'object') {
+    return res.status(400).json({ error: 'Request body is required and must be valid JSON' })
+  }
+
+  const { leadIds, userTier } = req.body as { leadIds?: number[]; userTier?: number }
+
+  if (!Array.isArray(leadIds) || leadIds.length === 0) {
+    return res.status(400).json({ error: 'leadIds must be a non-empty array' })
+  }
+
+  try {
+    const leads = await prisma.lead.findMany({
+      where: { id: { in: leadIds.map((id) => Number(id)) } },
+    })
+
+    if (leads.length === 0) {
+      return res.status(404).json({ error: 'No leads found with the provided IDs' })
+    }
+
+    const connection = await Connection.connect({ address: 'localhost:7233' })
+    const client = new Client({ connection, namespace: 'default' })
+
+    let foundCount = 0
+    const results: Array<{ leadId: number; phone: string | null; provider: string | null }> = []
+    const errors: Array<{ leadId: number; leadName: string; error: string }> = []
+
+    for (const lead of leads) {
+      try {
+        const phoneResult = await client.workflow.execute(findPhoneWorkflow, {
+          taskQueue: 'myQueue',
+          workflowId: `find-phone-${lead.id}-${Date.now()}`,
+          args: [
+            {
+              email: lead.email,
+              fullName: `${lead.firstName} ${lead.lastName}`.trim(),
+              companyWebsite: lead.companyName || undefined,
+              jobTitle: lead.jobTitle || undefined,
+              userTier: userTier ?? 0,
+            },
+          ],
+        })
+
+        if (phoneResult) {
+          await prisma.lead.update({
+            where: { id: lead.id },
+            data: {
+              phone: phoneResult.phone,
+              phoneProvider: phoneResult.provider,
+              phoneCountryCode: phoneResult.countryCode || null,
+            },
+          })
+
+          results.push({ leadId: lead.id, phone: phoneResult.phone, provider: phoneResult.provider })
+          foundCount += 1
+        } else {
+          results.push({ leadId: lead.id, phone: null, provider: null })
+        }
+      } catch (error) {
+        errors.push({
+          leadId: lead.id,
+          leadName: `${lead.firstName} ${lead.lastName}`.trim(),
+          error: error instanceof Error ? error.message : 'Unknown error',
+        })
+      }
+    }
+
+    await connection.close()
+
+    res.json({ success: true, foundCount, results, errors })
+  } catch (error) {
+    console.error('Error finding phones:', error)
+    res.status(500).json({ error: 'Failed to find phones' })
   }
 })
 
