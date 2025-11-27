@@ -22,7 +22,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: "backend/.nvmrc"
-          cache: "pnpm"
 
       - name: Install dependencies
         run: cd backend && pnpm install --frozen-lockfile
@@ -56,7 +55,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: "frontend/.nvmrc"
-          cache: "pnpm"
 
       - name: Install dependencies
         run: cd frontend && pnpm install --frozen-lockfile
