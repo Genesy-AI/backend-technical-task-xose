@@ -11,7 +11,7 @@ export class OrionConnectAdapter implements IPhoneProvider {
   ) { }
 
   async findPhone(params: PhoneSearchParams): Promise<PhoneProviderResult | null> {
-    console.log("-- [Orion Connect] Finding phone...")
+    console.debug("-- [Orion Connect] Finding phone...")
     if (!params.fullName || !params.companyWebsite) return null;
 
     const response = await fetch(this.apiUrl, {
@@ -31,7 +31,7 @@ export class OrionConnectAdapter implements IPhoneProvider {
     }
 
     const data: OrionConnectResponse = await response.json()
-    console.log("-- [Orion Connect] Phone found: ", data?.phone)
+    console.debug("-- [Orion Connect] Phone found: ", data?.phone)
 
     if (!data.phone) return null;
     return {

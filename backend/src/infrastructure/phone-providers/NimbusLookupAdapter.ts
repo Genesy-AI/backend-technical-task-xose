@@ -12,7 +12,7 @@ export class NimbusLookupAdapter implements IPhoneProvider {
 
     async findPhone(params: PhoneSearchParams): Promise<PhoneProviderResult | null> {
         if (!params.email || !params.jobTitle) return null;
-        console.log("-- [Nimbus Lookup] Finding phone...")
+        console.debug("-- [Nimbus Lookup] Finding phone...")
 
 
         const url = new URL(this.apiUrl)
@@ -35,7 +35,7 @@ export class NimbusLookupAdapter implements IPhoneProvider {
 
         const data: NimbusLookupResponse = await response.json()
 
-        console.log("-- [Nimbus Lookup] Phone found: ", data?.phoneNmbr)
+        console.debug("-- [Nimbus Lookup] Phone found: ", data?.phoneNmbr)
 
         if (!data.phoneNmbr) return null;
         return {

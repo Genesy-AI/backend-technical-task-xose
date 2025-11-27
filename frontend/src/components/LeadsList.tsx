@@ -40,7 +40,6 @@ export const LeadsList: FC = () => {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['leads', 'getMany'] })
       setIsEnrichDropdownOpen(false)
-      console.log("Data received: ", data);
       if (data.results && data.results.length > 0) {
         toast.success(
           data.verifiedCount === 1

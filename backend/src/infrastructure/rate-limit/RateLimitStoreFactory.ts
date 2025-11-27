@@ -23,7 +23,7 @@ export class RateLimitStoreFactory {
     static async create(config: RateLimitStoreConfig = {}): Promise<IRateLimitStore> {
         // Force in-memory mode (useful for tests)
         if (config.forceInMemory) {
-            console.log('Using InMemoryRateLimitStore (forced)');
+            console.debug('Using InMemoryRateLimitStore (forced)');
             return new InMemoryRateLimitStore();
         }
 
@@ -32,7 +32,7 @@ export class RateLimitStoreFactory {
             try {
                 const redisStore = new RedisRateLimitStore(config.redisUrl);
                 await redisStore.connect();
-                console.log('Using RedisRateLimitStore (distributed rate limiting enabled)');
+                console.debug('Using RedisRateLimitStore (distributed rate limiting enabled)');
                 return redisStore;
             } catch (error) {
                 console.warn(
@@ -43,7 +43,7 @@ export class RateLimitStoreFactory {
         }
 
         // Default to in-memory
-        console.log('Using InMemoryRateLimitStore (single-worker mode)');
+        console.debug('Using InMemoryRateLimitStore (single-worker mode)');
         return new InMemoryRateLimitStore();
     }
 }
