@@ -12,7 +12,7 @@ export class AstraDialerAdapter implements IPhoneProvider {
 
     async findPhone(params: PhoneSearchParams): Promise<PhoneProviderResult | null> {
         if (!params.email) return null;
-        console.log("-- [Astra Dialer] Finding phone...")
+        console.debug("-- [Astra Dialer] Finding phone...")
 
         const response = await fetch(this.apiUrl, {
             method: 'POST',
@@ -31,7 +31,7 @@ export class AstraDialerAdapter implements IPhoneProvider {
 
         const data: AstraDialerResponse = await response.json()
 
-        console.log("-- [Astra Dialer] Phone found: ", data?.phoneNmbr)
+        console.debug("-- [Astra Dialer] Phone found: ", data?.phoneNmbr)
 
         if (!data.phoneNmbr) return null;
         return {
