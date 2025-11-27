@@ -24,14 +24,16 @@ This document outlines the current implementation, key architectural decisions, 
 - Models: `ProviderConfig` with rate limiting and user tier support
 - Services: Provider selection pipeline with filters (enabled, rate limit, user tier) and priority sorting
 
-**Application Layer** (`src/application/`):
-- Use Case: `FindPhoneUseCase` orchestrates waterfall pattern
-- Business logic isolated from infrastructure concerns
-
 **Infrastructure Layer** (`src/infrastructure/`):
 - Adapters: Three provider implementations (Orion Connect, Astra Dialer, Nimbus Lookup)
 - Rate Limiting: Redis-based distributed rate limiting with automatic in-memory fallback
 - Temporal: Workflow and activity integration
+
+**Workflow Layer** (`src/workflows/`):
+- `findPhoneWorkflow`: Orchestrates waterfall pattern with separate activities per provider
+- Individual activities: `astraDialerFindPhone`, `nimbusLookupFindPhone`, `orionConnectFindPhone`
+- `getAvailableProviders` activity: Filters and sorts providers based on pipeline
+- Error handling: Workflow catches failures and continues to next provider
 
 **Additional Work**:
 - ✅ Two bug fixes (CSV country codes, email verification timeout)
@@ -39,22 +41,23 @@ This document outlines the current implementation, key architectural decisions, 
 - ✅ Configuration management extracted to TypeScript files
 - ✅ Database schema migration for phone fields
 - ✅ Frontend integration (phone column, Find Phone button, error handling)
+- ✅ Testing: Verified workflow execution, retries, provider fallback, and rate limiting
 
 ---
 
 ## Key Architectural Decisions
 
-### 1. Single Activity vs. Separate Activities per Provider
+### 1. Separate Activities per Provider vs. Single Activity
 
-**Decision**: Implemented as single `findPhone` activity with internal waterfall.
+**Decision**: Implemented with separate Temporal activities for each provider in a waterfall pattern.
 
 **Rationale**:
-- Keeps business logic in domain layer (DDD principle)
-- Rate limiting is more precise (only consumes when provider is used)
-- Less Temporal overhead (1 activity vs 3+ activities)
-- Easier to test (use case unit tests vs workflow integration tests)
+- Better observability in Temporal UI (each provider call is visible as an activity)
+- Easier debugging and monitoring per provider
+- Scalable architecture for adding/removing providers
+- Maintains DDD principles with domain logic in pipeline, infrastructure in adapters
 
-**Trade-off**: Less granular visibility in Temporal UI. Could refactor to separate activities if ops team needs detailed per-provider debugging without changing core architecture.
+**Trade-off**: Slightly more Temporal overhead vs. single activity. Mitigated by appropriate timeouts and retries per provider characteristics.
 
 ### 2. Provider Config as String vs. Enum in Database
 
@@ -87,6 +90,26 @@ This document outlines the current implementation, key architectural decisions, 
 - Automatic cleanup of old entries
 
 **Configuration**: Centralized in `providers.config.ts` for easy adjustment.
+
+---
+
+## Testing Strategy Implemented
+
+### Manual Testing Performed
+- **Workflow Execution**: Verified `findPhoneWorkflow` runs correctly in Temporal UI, calling activities sequentially.
+- **Retries Functionality**: Forced activity failures to confirm 2 retries per provider before moving to next.
+- **Waterfall Behavior**: Tested provider fallback (first fails → second succeeds → stops).
+- **Rate Limiting**: Confirmed consumption and blocking when limits exceeded.
+- **Provider APIs**: Integrated all three providers with proper auth and response mapping.
+- **Error Handling**: Workflow continues on activity failures, stops on success.
+
+### Test Coverage
+- **Domain Layer**: Pipeline filters, sorters, and rate limiting logic.
+- **Infrastructure**: Provider adapters and Redis rate limiting.
+- **Workflow**: Activity execution and error propagation.
+- **Integration**: End-to-end workflow with mocked providers.
+
+**Note**: Removed obsolete `FindPhoneUseCase` tests as logic moved to workflow layer.
 
 ---
 
@@ -412,12 +435,13 @@ docker-compose down -v && docker-compose up -d
 - Provider selection pipeline with various filters
 - Rate limit filter with sliding window
 - User tier filter permissions
-- FindPhoneUseCase waterfall logic
+- Workflow activity logic and error handling
 
 **Integration Tests**:
 - POST /leads/find-phones with mocked providers
 - Rate limiting across multiple requests
 - Redis failover to in-memory
+- Workflow execution with Temporal
 
 **E2E Tests** (Selective):
 - Critical flow: Import CSV → Find phones → Verify results
@@ -428,6 +452,12 @@ docker-compose down -v && docker-compose up -d
 - k6 or similar tool
 - 1000 leads imported simultaneously
 - Multiple workers processing concurrently
+
+### Current Test Status
+- ✅ Manual verification of workflow waterfall and retries
+- ✅ Domain layer unit tests for pipeline and filters
+- ✅ Integration tests for provider adapters
+- ❌ Removed obsolete use case tests (logic moved to workflow)
 
 ---
 
