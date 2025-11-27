@@ -34,7 +34,7 @@ describe('RedisRateLimitStore [integration]', () => {
 
     it('should count requests correctly', async () => {
         const count = await store.getCount(TEST_KEY);
-        expect(count).toBe(6); // 5 allowed + 1 blocked
+        expect(count).toBe(5); // 5 allowed (blocked requests not counted)
     });
 
     it('should reset the key', async () => {

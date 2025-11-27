@@ -46,37 +46,22 @@ export class RedisRateLimitStore implements IRateLimitStore {
         const windowStart = now - windowSeconds * 1000;
 
         try {
-            // Start Redis transaction
-            const pipeline = this.client.pipeline();
-
             // Remove old entries outside the window
-            pipeline.zremrangebyscore(key, 0, windowStart);
+            await this.client.zremrangebyscore(key, 0, windowStart);
 
             // Count current entries in the window
-            pipeline.zcard(key);
+            const currentCount = await this.client.zcard(key);
 
-            // Add current request timestamp
-            pipeline.zadd(key, now, `${now}`);
+            const allowed = currentCount < limit;
 
-            // Set expiration to window duration (cleanup)
-            pipeline.expire(key, windowSeconds);
-
-            const results = await pipeline.exec();
-
-            if (!results) {
-                throw new Error('Redis pipeline execution failed');
+            if (allowed) {
+                // Add current request timestamp only if allowed
+                await this.client.zadd(key, now, `${now}`);
+                // Set expiration to window duration (cleanup)
+                await this.client.expire(key, windowSeconds);
             }
 
-            // Get count from ZCARD result (index 1)
-            const countResult = results[1];
-            if (countResult[0]) {
-                throw countResult[0]; // Error in ZCARD command
-            }
-
-            const currentCount = countResult[1] as number;
-
-            // Check if under limit (count before adding current request)
-            return currentCount < limit;
+            return allowed;
         } catch (error) {
             console.error('Redis tryConsume error:', error);
             // On error, allow the request (fail open)
