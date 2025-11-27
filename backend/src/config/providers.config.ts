@@ -12,8 +12,8 @@ import { ProviderConfig, UserTier } from '../domain/models/ProviderConfig';
  * 
  * Priority ordering rationale:
  * 1. Orion Connect (10): Best data quality, slowest, premium tier only
- * 2. Astra Dialer (5): Good balance of speed and accuracy
- * 3. Nimbus Lookup (1): Newest provider, still being evaluated
+ * 2. Nimbus Lookup (5): Newest provider, still being evaluated
+ * 3. Astra Dialer (1): Worst data quality, fastest, available for all users
  */
 export const PROVIDER_CONFIGS: ProviderConfig[] = [
     {
@@ -38,9 +38,7 @@ export const PROVIDER_CONFIGS: ProviderConfig[] = [
         name: ProviderName.ASTRA_DIALER,
         enabled: true,
         priority: 1,
-        rateLimit: {
-            maxRequestsPerHour: 200,
-        },
+        // No rate limit (this provider acts always as a fallback)
         // Available to all users (no minUserTier restriction)
     },
 ];
