@@ -28,16 +28,31 @@ export const isValidCountryCode = (countryCode: string) => {
   return countries.isValid(countryCode.toUpperCase())
 }
 
+// Function to clean invisible characters and control chars
+const cleanValue = (value: string): string => {
+  return value
+    .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width spaces, BOM
+    .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
+    .trim()
+}
+
 export const parseCsv = (content: string): CsvLead[] => {
   if (!content?.trim()) {
     throw new Error('CSV content cannot be empty')
   }
 
+  // Remove BOM if present
+  content = content.replace(/^\uFEFF/, '')
+
   const parseResult = Papa.parse<Record<string, string>>(content, {
     header: true,
     skipEmptyLines: true,
-    transform: (value) => value.trim(),
-    transformHeader: (header) => header.trim().toLowerCase(),
+    transform: (value: string) => cleanValue(value),
+    transformHeader: (header: string) =>
+      header
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z]/g, ''),
     quoteChar: '"',
   })
 
