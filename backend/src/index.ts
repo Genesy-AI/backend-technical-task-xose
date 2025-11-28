@@ -34,7 +34,6 @@ app.post('/leads', async (req: Request, res: Response) => {
       firstName: String(name),
       lastName: String(lastName),
       email: String(email),
-      testField: '',
     },
   })
   res.json(lead)
@@ -231,7 +230,6 @@ app.post('/leads/bulk', async (req: Request, res: Response) => {
             jobTitle: lead.jobTitle ? lead.jobTitle.trim() : null,
             countryCode: lead.countryCode ? lead.countryCode.trim() : null,
             companyName: lead.companyName ? lead.companyName.trim() : null,
-            testField: '',
           },
         })
         importedCount++
