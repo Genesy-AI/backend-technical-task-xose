@@ -5,6 +5,7 @@ import { api } from '../api'
 import { MessageTemplateModal } from './MessageTemplateModal'
 import { CsvImportModal } from './CsvImportModal'
 import { ProgressTracker } from './ProgressTracker'
+import { useUser } from '../contexts/UserContext'
 
 export const LeadsList: FC = () => {
   const [selectedLeads, setSelectedLeads] = useState<number[]>([])
@@ -12,6 +13,7 @@ export const LeadsList: FC = () => {
   const [isEnrichDropdownOpen, setIsEnrichDropdownOpen] = useState(false)
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const queryClient = useQueryClient()
+  const { userTier } = useUser()
 
   const leads = useQuery({
     queryKey: ['leads', 'getMany'],
@@ -70,7 +72,7 @@ export const LeadsList: FC = () => {
   })
 
   const findPhonesMutation = useMutation({
-    mutationFn: async (ids: number[]) => api.leads.findPhones({ leadIds: ids, userTier: 0 }),
+    mutationFn: async (ids: number[]) => api.leads.findPhones({ leadIds: ids, userTier }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['leads', 'getMany'] })
       setIsEnrichDropdownOpen(false)

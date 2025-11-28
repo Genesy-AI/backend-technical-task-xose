@@ -1,1 +1,1 @@
-export { ProviderConfig, RateLimitConfig, UserTier } from './ProviderConfig'
+export { type ProviderConfig, type RateLimitConfig, UserTier } from './ProviderConfig'

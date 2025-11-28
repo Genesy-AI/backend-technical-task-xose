@@ -4,7 +4,7 @@ import * as activities from './workflows/activities'
 
 export async function runTemporalWorker() {
   const connection = await NativeConnection.connect({
-    address: 'localhost:7233',
+    address: process.env.TEMPORAL_ADDRESS || '',
   })
   try {
     const worker = await Worker.create({

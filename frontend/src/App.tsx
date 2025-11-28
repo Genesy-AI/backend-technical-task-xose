@@ -1,4 +1,5 @@
 import { LeadsList } from './components/LeadsList'
+import { UserTierSelector } from './components/UserTierSelector'
 
 function App() {
   return (
@@ -15,6 +16,9 @@ function App() {
                 />
                 <h1 className="ml-3 text-xl font-semibold text-gray-900">TinyGenesy</h1>
               </a>
+            </div>
+            <div className="flex items-center gap-4">
+              <UserTierSelector />
             </div>
           </div>
         </div>

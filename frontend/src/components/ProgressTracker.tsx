@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import io from 'socket.io-client'
 
+const SOCKET_URL = import.meta.env.VITE_API_URL || null
+
 interface ProgressEvent {
   type: 'findPhone' | 'verifyEmail'
   leadId?: number
@@ -69,7 +71,8 @@ export const ProgressTracker = () => {
   const [isExpanded, setIsExpanded] = useState(false)
 
   useEffect(() => {
-    const socket = io('http://localhost:4000')
+    if (!SOCKET_URL) return
+    const socket = io(SOCKET_URL)
 
     socket.on('progress', (data: ProgressEvent) => {
       setActiveTasks((prevTasks) => {
