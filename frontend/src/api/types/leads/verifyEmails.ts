@@ -15,5 +15,3 @@ export type LeadsVerifyEmailsOutput = {
     error: string
   }>
 }
-
-

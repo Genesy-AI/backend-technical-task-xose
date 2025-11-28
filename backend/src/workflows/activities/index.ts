@@ -1,5 +1,5 @@
-export * from './verifyEmail';
-export * from './availablePhoneProviders';
-export { astraDialerFindPhone } from './phone-providers/AstraDialerActivity';
-export { nimbusLookupFindPhone } from './phone-providers/NimbusLookupActivity';
-export { orionConnectFindPhone } from './phone-providers/OrionConnectActivity';
+export * from './verifyEmail'
+export * from './availablePhoneProviders'
+export { astraDialerFindPhone } from './phone-providers/AstraDialerActivity'
+export { nimbusLookupFindPhone } from './phone-providers/NimbusLookupActivity'
+export { orionConnectFindPhone } from './phone-providers/OrionConnectActivity'

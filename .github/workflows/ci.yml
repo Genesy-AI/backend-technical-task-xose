@@ -1,0 +1,82 @@
+name: CI Pipeline for TinyGenesy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-backend:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: "backend/.nvmrc"
+
+      - name: Install dependencies
+        run: cd backend && pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: cd backend && pnpm gen:prisma
+
+      - name: Lint backend
+        run: cd backend && pnpm format
+
+      - name: Test backend
+        run: cd backend && pnpm test
+
+      - name: Build backend
+        run: cd backend && pnpm build
+
+      - name: Run Prisma migrations (backend)
+        run: cd backend && pnpm migrate:dev
+        env:
+          DATABASE_URL: "sqlite::memory:"
+
+  validate-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: "frontend/.nvmrc"
+
+      - name: Install dependencies
+        run: cd frontend && pnpm install --frozen-lockfile
+
+      - name: Lint frontend
+        run: cd frontend && pnpm format
+
+      - name: Test frontend
+        run: cd frontend && pnpm test
+
+      - name: Build frontend
+        run: cd frontend && pnpm build
