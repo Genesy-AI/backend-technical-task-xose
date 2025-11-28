@@ -22,4 +22,5 @@ model lead {
   phone            String?
   phoneProvider    String?
   phoneCountryCode String?
+  testField        String  // Required field without default value to force pipeline error
 }
