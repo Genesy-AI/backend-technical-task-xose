@@ -1,0 +1,13 @@
+{
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7"
+  },
+  "scripts": {
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "backend/**/*.{ts,tsx,js,jsx,json,md}": "bash -c 'cd backend && pnpm format'",
+    "frontend/**/*.{ts,tsx,js,jsx,json,md}": "bash -c 'cd frontend && pnpm format'"
+  }
+}
