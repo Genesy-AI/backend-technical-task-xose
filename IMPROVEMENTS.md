@@ -12,6 +12,14 @@ This document outlines the current implementation, key architectural decisions, 
 
 ---
 
+## Updated Setup Instructions
+
+**Important Notes for Current Implementation**:
+- **Environment Variables**: The project now requires environment variables as defined in the `.env` files (refer to `.env.sample` for the required keys). Ensure to copy `.env.sample` to `.env` and populate the values before running the application.
+- **Redis Dependency**: In addition to the setup instructions in `README.md`, Redis must be running for rate limiting and other features. Use `docker-compose up -d` to start Redis (and optionally Redis Commander for monitoring).
+
+---
+
 ## Current Implementation Summary
 
 ### What Was Built
@@ -35,13 +43,21 @@ This document outlines the current implementation, key architectural decisions, 
 - `getAvailableProviders` activity: Filters and sorts providers based on pipeline
 - Error handling: Workflow catches failures and continues to next provider
 
-**Additional Work**:
-- ✅ Two bug fixes (CSV country codes, email verification timeout)
-- ✅ Redis Docker setup with Redis Commander for monitoring
-- ✅ Configuration management extracted to TypeScript files
-- ✅ Database schema migration for phone fields
-- ✅ Frontend integration (phone column, Find Phone button, error handling)
-- ✅ Testing: Verified workflow execution, retries, provider fallback, and rate limiting
+---
+
+## Bug Fixes
+
+
+- **CSV Country Code Issue**: When importing leads from CSV, the country column displayed strange characters or invalid codes. The root cause was incorrect parsing/interpretation of country data in the CSV parser. The fix included normalizing and validating country values, as well as cleaning invisible characters and BOM (Byte Order Mark) from the input (see `csvParser.ts`). This ensures only valid and readable codes are shown in the interface and prevents hidden formatting issues.
+
+- **Email Verification Timeout**: The email verification feature could run indefinitely in some cases, without providing feedback to the user. This was resolved by adding timeouts and improved error handling in the workflow, as well as updating the frontend to clearly display status and errors. Now, users receive immediate feedback if verification fails or takes too long.
+
+## New Features Implemented
+
+
+- **Parallel Workflows**: Batch operations (such as email verification and phone waterfall) can now be executed in parallel using Temporal, improving efficiency and reducing user wait times.
+- **Real-Time Progress Feedback**: Integration of sockets (WebSocket) between backend and frontend to display batch task progress in real time, providing a better user experience and instant feedback in the UI.
+
 
 ---
 
@@ -114,8 +130,31 @@ This document outlines the current implementation, key architectural decisions, 
 ---
 
 ## Quick Wins (1-2 weeks)
+### 1. Dockerize All Applications
 
-### 1. Database Indexes
+**Current**: Only Redis is dockerized for local development.
+
+**Impact**: 🚀 High | **Effort**: ⚡ Medium
+
+**Idea**: Create Dockerfiles and compose setup for backend, frontend, and Temporal worker/server, enabling easy local and production deployment.
+
+**Benefit**: Simplifies onboarding, ensures consistent environments, enables scalable deployments.
+
+---
+
+### 2. Shared TypeScript Package
+
+**Current**: Types/interfaces are duplicated between backend and frontend.
+
+**Impact**: 🚀 High | **Effort**: ⚡ Medium
+
+**Idea**: Create a shared package (monorepo or npm workspace) to define and share types/interfaces/utilities across backend, frontend, and any future apps, maintaining them in a single place.
+
+**Benefit**: Reduces duplication, improves type safety, simplifies maintenance and future expansion.
+
+---
+
+### 3. Database Indexes
 
 **Current**: No custom indexes.
 
@@ -131,7 +170,7 @@ CREATE INDEX idx_lead_emailVerified_createdAt ON lead(emailVerified, createdAt);
 
 ---
 
-### 2. Phone Number Formatting
+### 4. Phone Number Formatting
 
 **Current**: Stores phone numbers as-is from providers.
 
@@ -149,7 +188,7 @@ import { parsePhoneNumber } from 'libphonenumber-js'
 
 ---
 
-### 3. Connection Pooling
+### 5. Connection Pooling
 
 **Current**: New Temporal connection per request.
 
@@ -167,7 +206,7 @@ class TemporalConnectionPool {
 
 ---
 
-### 4. Basic Monitoring
+### 6. Basic Monitoring
 
 **Current**: Console logs only.
 
@@ -179,27 +218,7 @@ class TemporalConnectionPool {
 - Key metrics: success rate per provider, response time, rate limit hits
 
 **Benefit**: Production visibility, faster debugging.
-
----
-
-### 5. Provider Cost Tracking
-
-**Current**: No cost visibility.
-
-**Impact**: 🚀 Medium | **Effort**: ⚡ Medium
-
-```typescript
-model ProviderUsage {
-  id         Int      @id @default(autoincrement())
-  leadId     Int
-  provider   String
-  costUSD    Decimal?
-  successful Boolean
-  timestamp  DateTime @default(now())
-}
-```
-
-**Benefit**: Understand ROI per provider, optimize budget allocation.
+.
 
 ---
 
@@ -229,7 +248,6 @@ model ProviderConfig {
 - A/B testing different priorities
 - No code deployment for config changes
 - Per-environment configuration
-
 ---
 
 ### 2. Circuit Breaker Pattern
@@ -252,25 +270,7 @@ class CircuitBreakerProviderFilter implements IProviderFilter {
 
 ---
 
-### 3. Async Email Verification with Polling
-
-**Current**: Frontend waits for entire batch (blocking).
-
-**Impact**: 🚀 Medium | **Effort**: ⚡⚡ Medium
-
-**Flow**:
-1. POST /leads/verify-emails → Returns job ID immediately
-2. Frontend polls GET /jobs/:jobId for status
-3. Update UI incrementally as emails complete
-
-**Benefits**:
-- Better UX for large batches (no timeout)
-- Progress indicators
-- User can navigate away and check back
-
----
-
-### 4. Caching Layer for Phone Lookups
+### 3. Caching Layer for Phone Lookups
 
 **Current**: No caching, always calls providers.
 
@@ -289,7 +289,7 @@ class CircuitBreakerProviderFilter implements IProviderFilter {
 
 ---
 
-### 5. Smart Provider Selection (ML-based)
+### 4. Smart Provider Selection (ML-based)
 
 **Current**: Fixed priority order.
 
@@ -403,6 +403,8 @@ class CircuitBreakerProviderFilter implements IProviderFilter {
 
 ### 6. Docker Setup (Already Implemented)
 
+**Note**: Only the Redis service has been dockerized for local development and monitoring.
+
 **Quick Start**:
 ```bash
 docker-compose up -d  # Starts Redis + Redis Commander
@@ -461,40 +463,14 @@ docker-compose down -v && docker-compose up -d
 
 ---
 
-## Migration Path
-
-### Phase 1: Stabilization (1 week)
-- [ ] Add database indexes
-- [ ] Basic monitoring (Sentry)
-- [ ] Phone number formatting
-- [ ] Unit test coverage for critical paths
-
-### Phase 2: Optimization (2-3 weeks)
-- [ ] Connection pooling
-- [ ] Provider cost tracking
-- [ ] Caching layer
-- [ ] Load testing
-
-### Phase 3: Scale (1 month)
-- [ ] Provider configs in database
-- [ ] Circuit breaker pattern
-- [ ] Multi-environment setup
-- [ ] CI/CD pipeline
-
-### Phase 4: Intelligence (Ongoing)
-- [ ] ML-based provider selection
-- [ ] Advanced analytics dashboard
-- [ ] Real-time updates via WebSockets
-
----
-
 ## Questions for Product/Business
 
 1. **Provider Costs**: What's our budget per lead? Optimize for cost or speed?
 2. **Data Retention**: How long should we keep phone lookup history?
 3. **User Tiers**: What features should be gated behind premium tiers?
-4. **SLAs**: Acceptable response time for bulk operations? (current: ~1min/100 leads)
+4. **SLAs**: Acceptable response time for bulk operations?
 5. **Privacy**: GDPR compliance needed? (data export, right to be forgotten)
+6. **Enrichment for Existing Data**: Should we disable enrichment for leads that already have the relevant data, or keep it enabled to allow for potentially better or updated information?
 
 ---
 
