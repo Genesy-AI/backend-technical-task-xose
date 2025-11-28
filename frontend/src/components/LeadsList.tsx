@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { api } from '../api'
 import { MessageTemplateModal } from './MessageTemplateModal'
 import { CsvImportModal } from './CsvImportModal'
+import { ProgressTracker } from './ProgressTracker'
 
 export const LeadsList: FC = () => {
   const [selectedLeads, setSelectedLeads] = useState<number[]>([])
@@ -233,7 +234,10 @@ export const LeadsList: FC = () => {
                       </div>
                     </button>
                     <button
-                      onClick={() => verifyEmailsMutation.mutate(selectedLeads)}
+                      onClick={() => {
+                        verifyEmailsMutation.mutate(selectedLeads)
+                        setIsEnrichDropdownOpen(false)
+                      }}
                       disabled={verifyEmailsMutation.isPending}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
                     >
@@ -279,7 +283,10 @@ export const LeadsList: FC = () => {
                       </div>
                     </button>
                     <button
-                      onClick={() => findPhonesMutation.mutate(selectedLeads)}
+                      onClick={() => {
+                        findPhonesMutation.mutate(selectedLeads)
+                        setIsEnrichDropdownOpen(false)
+                      }}
                       disabled={findPhonesMutation.isPending}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
                     >
@@ -406,6 +413,8 @@ export const LeadsList: FC = () => {
           </div>
         </div>
       </div>
+
+      <ProgressTracker />
 
       <div className="flex-1 overflow-hidden">
         <div className="h-full overflow-auto">

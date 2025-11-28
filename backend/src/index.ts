@@ -5,8 +5,19 @@ import { Connection, Client } from '@temporalio/client'
 import { verifyEmailWorkflow, findPhoneWorkflow } from './workflows'
 import { generateMessageFromTemplate } from './utils/messageGenerator'
 import { runTemporalWorker } from './worker'
+import { Server as SocketServer } from 'socket.io'
+import http from 'http'
+
 const prisma = new PrismaClient()
 const app = express()
+const server = http.createServer(app)
+const io = new SocketServer(server, { cors: { origin: '*' } })
+
+// Configure WebSocket
+io.on('connection', (socket) => {
+  console.log('Client connected:', socket.id)
+})
+
 app.use(express.json())
 
 app.use(function (req, res, next) {
@@ -281,6 +292,9 @@ app.post('/leads/verify-emails', async (req: Request, res: Response) => {
     const results: Array<{ leadId: number; emailVerified: boolean }> = []
     const errors: Array<{ leadId: number; leadName: string; error: string }> = []
 
+    // Emit initial event
+    io.emit('progress', { type: 'verifyEmail', total: leads.length, started: true })
+
     for (const lead of leads) {
       try {
         const isVerified = await client.workflow.execute(verifyEmailWorkflow, {
@@ -296,11 +310,25 @@ app.post('/leads/verify-emails', async (req: Request, res: Response) => {
 
         results.push({ leadId: lead.id, emailVerified: isVerified })
         verifiedCount += 1
+
+        // Emit completed progress
+        io.emit('progress', {
+          type: 'verifyEmail',
+          leadId: lead.id,
+          status: 'completed',
+        })
       } catch (error) {
         errors.push({
           leadId: lead.id,
           leadName: `${lead.firstName} ${lead.lastName}`.trim(),
           error: error instanceof Error ? error.message : 'Unknown error',
+        })
+
+        // Emit error progress
+        io.emit('progress', {
+          type: 'verifyEmail',
+          leadId: lead.id,
+          status: 'error',
         })
       }
     }
@@ -341,6 +369,9 @@ app.post('/leads/find-phones', async (req: Request, res: Response) => {
     const results: Array<{ leadId: number; phone: string | null; provider: string | null }> = []
     const errors: Array<{ leadId: number; leadName: string; error: string }> = []
 
+    // Emit an initial event
+    io.emit('progress', { type: 'findPhone', total: leads.length, started: true })
+
     for (const lead of leads) {
       try {
         const phoneResult = await client.workflow.execute(findPhoneWorkflow, {
@@ -369,14 +400,35 @@ app.post('/leads/find-phones', async (req: Request, res: Response) => {
 
           results.push({ leadId: lead.id, phone: phoneResult.phone, provider: phoneResult.provider })
           foundCount += 1
+
+          // Emit completed progress
+          io.emit('progress', {
+            type: 'findPhone',
+            leadId: lead.id,
+            status: 'completed',
+          })
         } else {
           results.push({ leadId: lead.id, phone: null, provider: null })
+
+          // Emit progress without result
+          io.emit('progress', {
+            type: 'findPhone',
+            leadId: lead.id,
+            status: 'completed',
+          })
         }
       } catch (error) {
         errors.push({
           leadId: lead.id,
           leadName: `${lead.firstName} ${lead.lastName}`.trim(),
           error: error instanceof Error ? error.message : 'Unknown error',
+        })
+
+        // Emit error progress
+        io.emit('progress', {
+          type: 'findPhone',
+          leadId: lead.id,
+          status: 'error',
         })
       }
     }
@@ -390,8 +442,8 @@ app.post('/leads/find-phones', async (req: Request, res: Response) => {
   }
 })
 
-app.listen(4000, () => {
-  console.log('Express server is running on port 4000')
+server.listen(4000, () => {
+  console.log('Express server is running on port 4000 with WebSockets')
 })
 
 runTemporalWorker().catch((err) => {

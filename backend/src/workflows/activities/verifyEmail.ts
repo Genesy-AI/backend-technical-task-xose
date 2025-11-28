@@ -4,7 +4,7 @@ export async function verifyEmail(email: string): Promise<boolean> {
     throw new Error('Forced error')
   }
 
-  if (email.includes('jane.smith')) {
+  if (email.includes('jane.smith') || email.includes('@hotmail.com')) {
     await new Promise((resolve) => setTimeout(resolve, 20000))
   }
 
