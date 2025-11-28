@@ -5,8 +5,22 @@ import { Connection, Client } from '@temporalio/client'
 import { verifyEmailWorkflow, findPhoneWorkflow } from './workflows'
 import { generateMessageFromTemplate } from './utils/messageGenerator'
 import { runTemporalWorker } from './worker'
+import { Server as SocketServer } from 'socket.io'
+import http from 'http'
+import pLimit from 'p-limit'
+
 const prisma = new PrismaClient()
 const app = express()
+const server = http.createServer(app)
+const io = new SocketServer(server, { cors: { origin: '*' } })
+
+// Configure WebSocket
+io.on('connection', (socket) => {
+  console.log('Client connected:', socket.id)
+})
+
+const TEMPORAL_ADDRESS = process.env.TEMPORAL_ADDRESS || ''
+
 app.use(express.json())
 
 app.use(function (req, res, next) {
@@ -274,36 +288,59 @@ app.post('/leads/verify-emails', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'No leads found with the provided IDs' })
     }
 
-    const connection = await Connection.connect({ address: 'localhost:7233' })
+    const connection = await Connection.connect({ address: TEMPORAL_ADDRESS })
     const client = new Client({ connection, namespace: 'default' })
 
     let verifiedCount = 0
     const results: Array<{ leadId: number; emailVerified: boolean }> = []
     const errors: Array<{ leadId: number; leadName: string; error: string }> = []
 
-    for (const lead of leads) {
-      try {
-        const isVerified = await client.workflow.execute(verifyEmailWorkflow, {
-          taskQueue: 'myQueue',
-          workflowId: `verify-email-${lead.id}-${Date.now()}`,
-          args: [lead.email],
-        })
+    // Emit initial event
+    io.emit('progress', { type: 'verifyEmail', total: leads.length, started: true })
 
-        await prisma.lead.update({
-          where: { id: lead.id },
-          data: { emailVerified: Boolean(isVerified) },
-        })
+    const limit = pLimit(5) // Limit concurrency to 5
 
-        results.push({ leadId: lead.id, emailVerified: isVerified })
-        verifiedCount += 1
-      } catch (error) {
-        errors.push({
-          leadId: lead.id,
-          leadName: `${lead.firstName} ${lead.lastName}`.trim(),
-          error: error instanceof Error ? error.message : 'Unknown error',
-        })
-      }
-    }
+    const promises = leads.map((lead) =>
+      limit(async () => {
+        try {
+          const isVerified = await client.workflow.execute(verifyEmailWorkflow, {
+            taskQueue: 'myQueue',
+            workflowId: `verify-email-${lead.id}-${Date.now()}`,
+            args: [lead.email],
+          })
+
+          await prisma.lead.update({
+            where: { id: lead.id },
+            data: { emailVerified: Boolean(isVerified) },
+          })
+
+          results.push({ leadId: lead.id, emailVerified: isVerified })
+          verifiedCount += 1
+
+          // Emit completed progress
+          io.emit('progress', {
+            type: 'verifyEmail',
+            leadId: lead.id,
+            status: 'completed',
+          })
+        } catch (error) {
+          errors.push({
+            leadId: lead.id,
+            leadName: `${lead.firstName} ${lead.lastName}`.trim(),
+            error: error instanceof Error ? error.message : 'Unknown error',
+          })
+
+          // Emit error progress
+          io.emit('progress', {
+            type: 'verifyEmail',
+            leadId: lead.id,
+            status: 'error',
+          })
+        }
+      })
+    )
+
+    await Promise.all(promises)
 
     await connection.close()
 
@@ -334,52 +371,82 @@ app.post('/leads/find-phones', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'No leads found with the provided IDs' })
     }
 
-    const connection = await Connection.connect({ address: 'localhost:7233' })
+    const connection = await Connection.connect({ address: TEMPORAL_ADDRESS })
     const client = new Client({ connection, namespace: 'default' })
 
     let foundCount = 0
     const results: Array<{ leadId: number; phone: string | null; provider: string | null }> = []
     const errors: Array<{ leadId: number; leadName: string; error: string }> = []
 
-    for (const lead of leads) {
-      try {
-        const phoneResult = await client.workflow.execute(findPhoneWorkflow, {
-          taskQueue: 'myQueue',
-          workflowId: `find-phone-${lead.id}-${Date.now()}`,
-          args: [
-            {
-              email: lead.email,
-              fullName: `${lead.firstName} ${lead.lastName}`.trim(),
-              companyWebsite: lead.companyName || undefined,
-              jobTitle: lead.jobTitle || undefined,
-              userTier: userTier ?? 0,
-            },
-          ],
-        })
+    // Emit an initial event
+    io.emit('progress', { type: 'findPhone', total: leads.length, started: true })
 
-        if (phoneResult) {
-          await prisma.lead.update({
-            where: { id: lead.id },
-            data: {
-              phone: phoneResult.phone,
-              phoneProvider: phoneResult.provider,
-              phoneCountryCode: phoneResult.countryCode || null,
-            },
+    const limit = pLimit(5) // Limit concurrency to 5
+
+    const promises = leads.map((lead) =>
+      limit(async () => {
+        try {
+          const phoneResult = await client.workflow.execute(findPhoneWorkflow, {
+            taskQueue: 'myQueue',
+            workflowId: `find-phone-${lead.id}-${Date.now()}`,
+            args: [
+              {
+                email: lead.email,
+                fullName: `${lead.firstName} ${lead.lastName}`.trim(),
+                companyWebsite: lead.companyName || undefined,
+                jobTitle: lead.jobTitle || undefined,
+                userTier: userTier ?? 0,
+              },
+            ],
           })
 
-          results.push({ leadId: lead.id, phone: phoneResult.phone, provider: phoneResult.provider })
-          foundCount += 1
-        } else {
-          results.push({ leadId: lead.id, phone: null, provider: null })
+          if (phoneResult) {
+            await prisma.lead.update({
+              where: { id: lead.id },
+              data: {
+                phone: phoneResult.phone,
+                phoneProvider: phoneResult.provider,
+                phoneCountryCode: phoneResult.countryCode || null,
+              },
+            })
+
+            results.push({ leadId: lead.id, phone: phoneResult.phone, provider: phoneResult.provider })
+            foundCount += 1
+
+            // Emit completed progress
+            io.emit('progress', {
+              type: 'findPhone',
+              leadId: lead.id,
+              status: 'completed',
+            })
+          } else {
+            results.push({ leadId: lead.id, phone: null, provider: null })
+
+            // Emit progress without result
+            io.emit('progress', {
+              type: 'findPhone',
+              leadId: lead.id,
+              status: 'completed',
+            })
+          }
+        } catch (error) {
+          errors.push({
+            leadId: lead.id,
+            leadName: `${lead.firstName} ${lead.lastName}`.trim(),
+            error: error instanceof Error ? error.message : 'Unknown error',
+          })
+
+          // Emit error progress
+          io.emit('progress', {
+            type: 'findPhone',
+            leadId: lead.id,
+            status: 'error',
+          })
         }
-      } catch (error) {
-        errors.push({
-          leadId: lead.id,
-          leadName: `${lead.firstName} ${lead.lastName}`.trim(),
-          error: error instanceof Error ? error.message : 'Unknown error',
-        })
-      }
-    }
+      })
+    )
+
+    await Promise.all(promises)
 
     await connection.close()
 
@@ -390,11 +457,21 @@ app.post('/leads/find-phones', async (req: Request, res: Response) => {
   }
 })
 
-app.listen(4000, () => {
-  console.log('Express server is running on port 4000')
+server.listen(4000, () => {
+  console.log('Express server is running on port 4000 with WebSockets')
 })
 
 runTemporalWorker().catch((err) => {
   console.error(err)
   process.exit(1)
 })
+
+function shutdown() {
+  server.close(() => {
+    console.log('Server closed gracefully')
+    process.exit(0)
+  })
+}
+process.on('SIGINT', shutdown)
+process.on('SIGTERM', shutdown)
+process.on('SIGUSR2', shutdown)

@@ -4,6 +4,8 @@ import toast from 'react-hot-toast'
 import { api } from '../api'
 import { MessageTemplateModal } from './MessageTemplateModal'
 import { CsvImportModal } from './CsvImportModal'
+import { ProgressTracker } from './ProgressTracker'
+import { useUser } from '../contexts/UserContext'
 
 export const LeadsList: FC = () => {
   const [selectedLeads, setSelectedLeads] = useState<number[]>([])
@@ -11,6 +13,7 @@ export const LeadsList: FC = () => {
   const [isEnrichDropdownOpen, setIsEnrichDropdownOpen] = useState(false)
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const queryClient = useQueryClient()
+  const { userTier } = useUser()
 
   const leads = useQuery({
     queryKey: ['leads', 'getMany'],
@@ -69,7 +72,7 @@ export const LeadsList: FC = () => {
   })
 
   const findPhonesMutation = useMutation({
-    mutationFn: async (ids: number[]) => api.leads.findPhones({ leadIds: ids, userTier: 0 }),
+    mutationFn: async (ids: number[]) => api.leads.findPhones({ leadIds: ids, userTier }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['leads', 'getMany'] })
       setIsEnrichDropdownOpen(false)
@@ -233,7 +236,10 @@ export const LeadsList: FC = () => {
                       </div>
                     </button>
                     <button
-                      onClick={() => verifyEmailsMutation.mutate(selectedLeads)}
+                      onClick={() => {
+                        verifyEmailsMutation.mutate(selectedLeads)
+                        setIsEnrichDropdownOpen(false)
+                      }}
                       disabled={verifyEmailsMutation.isPending}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
                     >
@@ -279,7 +285,10 @@ export const LeadsList: FC = () => {
                       </div>
                     </button>
                     <button
-                      onClick={() => findPhonesMutation.mutate(selectedLeads)}
+                      onClick={() => {
+                        findPhonesMutation.mutate(selectedLeads)
+                        setIsEnrichDropdownOpen(false)
+                      }}
                       disabled={findPhonesMutation.isPending}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
                     >
@@ -406,6 +415,8 @@ export const LeadsList: FC = () => {
           </div>
         </div>
       </div>
+
+      <ProgressTracker />
 
       <div className="flex-1 overflow-hidden">
         <div className="h-full overflow-auto">

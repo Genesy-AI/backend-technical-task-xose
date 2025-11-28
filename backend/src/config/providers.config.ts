@@ -21,16 +21,16 @@ export const PROVIDER_CONFIGS: ProviderConfig[] = [
     enabled: true,
     priority: 10,
     rateLimit: {
-      maxRequestsPerHour: 100,
+      maxRequestsPerHour: 50,
     },
-    // minUserTier: UserTier.PREMIUM,
+    minUserTier: UserTier.PREMIUM,
   },
   {
     name: ProviderName.NIMBUS_LOOKUP,
     enabled: true,
     priority: 5,
     rateLimit: {
-      maxRequestsPerHour: 300,
+      maxRequestsPerHour: 100,
     },
     // minUserTier: UserTier.BASIC,
   },
