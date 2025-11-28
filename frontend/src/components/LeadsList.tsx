@@ -18,8 +18,6 @@ export const LeadsList: FC = () => {
     retry: false,
   })
 
-  const a = 12345
-
   const deleteLeadsMutation = useMutation({
     mutationFn: async (ids: number[]) => api.leads.deleteMany({ ids }),
     onSuccess: (data) => {
