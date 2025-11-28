@@ -5,7 +5,7 @@ import countries from 'i18n-iso-countries'
 // as i18n-iso-countries is tree-shakeable
 // Decided to load english because it´s the most common and lightest
 import en from 'i18n-iso-countries/langs/en.json'
-countries.registerLocale(en);
+countries.registerLocale(en)
 
 export interface CsvLead {
   firstName: string
@@ -25,7 +25,7 @@ export const isValidEmail = (email: string): boolean => {
 }
 
 export const isValidCountryCode = (countryCode: string) => {
-  return countries.isValid(countryCode.toUpperCase());
+  return countries.isValid(countryCode.toUpperCase())
 }
 
 export const parseCsv = (content: string): CsvLead[] => {

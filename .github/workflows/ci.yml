@@ -73,7 +73,7 @@ jobs:
         run: cd frontend && pnpm install --frozen-lockfile
 
       - name: Lint frontend
-        run: cd frontend && pnpm lint
+        run: cd frontend && pnpm format
 
       - name: Test frontend
         run: cd frontend && pnpm test

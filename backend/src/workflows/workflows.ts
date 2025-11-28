@@ -1,9 +1,9 @@
 import { ActivityFunctionWithOptions, proxyActivities } from '@temporalio/workflow'
 import type * as activities from './activities'
-import { ProviderName } from '../domain/value-objects/ProviderName';
-import { UserTier } from '../domain/models';
-import { PhoneSearchParams } from '../domain/ports/IPhoneProvider';
-import { PhoneResult } from './types/PhoneResult';
+import { ProviderName } from '../domain/value-objects/ProviderName'
+import { UserTier } from '../domain/models'
+import { PhoneSearchParams } from '../domain/ports/IPhoneProvider'
+import { PhoneResult } from './types/PhoneResult'
 
 const { verifyEmail } = proxyActivities<typeof activities>({
   startToCloseTimeout: '30 seconds',
@@ -12,7 +12,7 @@ const { verifyEmail } = proxyActivities<typeof activities>({
     initialInterval: '1 second',
     backoffCoefficient: 2,
     maximumInterval: '10 seconds',
-  }
+  },
 })
 
 export async function verifyEmailWorkflow(email: string): Promise<boolean> {
@@ -26,7 +26,7 @@ const { getAvailablePhoneProviders } = proxyActivities<typeof activities>({
     initialInterval: '2 seconds',
     backoffCoefficient: 2,
     maximumInterval: '15 seconds',
-  }
+  },
 })
 
 const { orionConnectFindPhone } = proxyActivities<typeof activities>({
@@ -36,7 +36,7 @@ const { orionConnectFindPhone } = proxyActivities<typeof activities>({
     initialInterval: '2 seconds',
     backoffCoefficient: 2,
     maximumInterval: '15 seconds',
-  }
+  },
 })
 
 const { astraDialerFindPhone, nimbusLookupFindPhone } = proxyActivities<typeof activities>({
@@ -45,19 +45,21 @@ const { astraDialerFindPhone, nimbusLookupFindPhone } = proxyActivities<typeof a
     maximumAttempts: 2, // 1 retry since waterfall already tries multiple providers
     initialInterval: '2 seconds',
     backoffCoefficient: 2,
-  }
+  },
 })
 
-const mapProviderActivity = (providerName: ProviderName): ActivityFunctionWithOptions<(params: PhoneSearchParams) => Promise<PhoneResult | null>> | null => {
+const mapProviderActivity = (
+  providerName: ProviderName
+): ActivityFunctionWithOptions<(params: PhoneSearchParams) => Promise<PhoneResult | null>> | null => {
   switch (providerName) {
     case ProviderName.ASTRA_DIALER:
-      return astraDialerFindPhone;
+      return astraDialerFindPhone
     case ProviderName.NIMBUS_LOOKUP:
-      return nimbusLookupFindPhone;
+      return nimbusLookupFindPhone
     case ProviderName.ORION_CONNECT:
-      return orionConnectFindPhone;
+      return orionConnectFindPhone
     default:
-      return null;
+      return null
   }
 }
 
@@ -71,32 +73,30 @@ export async function findPhoneWorkflow(params: {
   // Get available providers
   const availableProviders = await getAvailablePhoneProviders({
     userTier: params.userTier ?? UserTier.FREE, // FREE by default
-  });
+  })
 
   // Waterfall: try each provider in order
   for (const config of availableProviders) {
-    let result: PhoneResult | null = null;
+    let result: PhoneResult | null = null
 
     try {
-      const providerActivity = mapProviderActivity(config.name);
-      if (!providerActivity) throw new Error(`No activity found for provider ${config.name}`);
+      const providerActivity = mapProviderActivity(config.name)
+      if (!providerActivity) throw new Error(`No activity found for provider ${config.name}`)
 
       result = await providerActivity({
         email: params.email,
         fullName: params.fullName,
         companyWebsite: params.companyWebsite,
         jobTitle: params.jobTitle,
-      });
+      })
 
-      if (result) return result;
-
+      if (result) return result
     } catch (error) {
-      console.error(`Provider ${config.name} activity failed after retries:`);
+      console.error(`Provider ${config.name} activity failed after retries:`)
       // Continue to next provider
-      continue;
+      continue
     }
   }
 
-  return null;
+  return null
 }
-

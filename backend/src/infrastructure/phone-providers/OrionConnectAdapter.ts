@@ -8,11 +8,11 @@ export class OrionConnectAdapter implements IPhoneProvider {
   constructor(
     private readonly apiUrl: string,
     private readonly apiKey: string
-  ) { }
+  ) {}
 
   async findPhone(params: PhoneSearchParams): Promise<PhoneProviderResult | null> {
-    console.debug("-- [Orion Connect] Finding phone...")
-    if (!params.fullName || !params.companyWebsite) return null;
+    console.debug('-- [Orion Connect] Finding phone...')
+    if (!params.fullName || !params.companyWebsite) return null
 
     const response = await fetch(this.apiUrl, {
       method: 'POST',
@@ -31,11 +31,11 @@ export class OrionConnectAdapter implements IPhoneProvider {
     }
 
     const data: OrionConnectResponse = await response.json()
-    console.debug("-- [Orion Connect] Phone found: ", data?.phone)
+    console.debug('-- [Orion Connect] Phone found: ', data?.phone)
 
-    if (!data.phone) return null;
+    if (!data.phone) return null
     return {
       phone: data.phone,
-    };
+    }
   }
 }
